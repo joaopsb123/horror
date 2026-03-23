@@ -1,66 +1,113 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Top-Down Game Supabase Multiplayer</title>
+  <title>Horror Game Lobby</title>
+  <style>
+    body { font-family: sans-serif; background: black; color: white; }
+    input, button { margin: 5px; }
+  </style>
 </head>
 <body>
-<h1>Top-Down Game Multiplayer + Supabase</h1>
-<canvas id="game" width="800" height="600" style="border:1px solid black;"></canvas>
+<h1>Horror Game - Lobby</h1>
+
+<div id="auth">
+  <h2>Login / Criar Conta</h2>
+  <input id="username" placeholder="Username">
+  <input id="password" placeholder="Password" type="password">
+  <button onclick="createAccount()">Criar Conta</button>
+  <button onclick="login()">Login</button>
+  <p id="status"></p>
+</div>
+
+<div id="character" style="display:none">
+  <h2>Escolha seu personagem</h2>
+  <select id="sprite">
+    <option value="default">Padrão</option>
+    <option value="ghost">Ghost</option>
+    <option value="zombie">Zombie</option>
+  </select>
+  <button onclick="enterLobby()">Entrar na Lobby</button>
+</div>
 
 <script type="module">
-// Import Supabase
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js";
 
-// === CONFIGURAÇÃO SUPABASE ===
+// Conexão Supabase
 const SUPABASE_URL = window.NEXT_PUBLIC_storage2_SUPABASE_URL;
 const SUPABASE_ANON_KEY = window.NEXT_PUBLIC_storage2_SUPABASE_ANON_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// === JOGO ===
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+let user_id = null;
 
-const PLAYER_ID = "player_" + Math.floor(Math.random()*10000);
-let players = {};
-players[PLAYER_ID] = { id: PLAYER_ID, x: 100, y: 100 };
+// Criar conta
+async function createAccount() {
+  const username = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
+  if (!username || !password) { alert("Preencha os campos!"); return; }
 
-// Salvar jogador atual
-async function save() {
-  await supabase.from("players").upsert(players[PLAYER_ID]);
-}
+  user_id = "user_" + Math.floor(Math.random()*10000);
 
-// Carregar todos jogadores
-async function loadAll() {
-  const { data, error } = await supabase.from("players").select("*");
-  if (data) {
-    data.forEach(p => players[p.id] = p);
+  const bcrypt_hash = btoa(password); // simples hash base64, depois pode trocar por bcrypt no backend
+
+  const { error } = await supabase.from("users").insert({
+    id: user_id,
+    username,
+    password_hash: bcrypt_hash
+  });
+
+  if (error) { 
+    document.getElementById("status").innerText = "Erro: " + error.message; 
+  } else {
+    document.getElementById("status").innerText = "Conta criada! Escolha o personagem.";
+    document.getElementById("auth").style.display = "none";
+    document.getElementById("character").style.display = "block";
   }
 }
 
-// Movimento WASD
-document.addEventListener("keydown", (e) => {
-  const player = players[PLAYER_ID];
-  if (e.key === "w") player.y -= 5;
-  if (e.key === "s") player.y += 5;
-  if (e.key === "a") player.x -= 5;
-  if (e.key === "d") player.x += 5;
-  save();
-});
+// Login
+async function login() {
+  const username = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
+  if (!username || !password) { alert("Preencha os campos!"); return; }
 
-// Desenhar jogadores
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  Object.values(players).forEach(p => {
-    ctx.fillStyle = p.id === PLAYER_ID ? "blue" : "red";
-    ctx.fillRect(p.x, p.y, 20, 20);
-  });
-  requestAnimationFrame(draw);
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("username", username)
+    .single();
+
+  if (error || !data) { document.getElementById("status").innerText = "Usuário não encontrado"; return; }
+
+  const password_hash = btoa(password); 
+  if (password_hash !== data.password_hash) { document.getElementById("status").innerText = "Senha incorreta"; return; }
+
+  user_id = data.id;
+  document.getElementById("status").innerText = "Login ok! Escolha personagem";
+  document.getElementById("auth").style.display = "none";
+  document.getElementById("character").style.display = "block";
 }
 
-// Atualizar todos jogadores a cada 200ms
-setInterval(loadAll, 200);
+// Entrar na lobby (criação de personagem)
+async function enterLobby() {
+  const sprite = document.getElementById("sprite").value;
+  const player_id = "player_" + Math.floor(Math.random()*10000);
 
-draw();
+  const { error } = await supabase.from("players").insert({
+    id: player_id,
+    user_id,
+    sprite,
+    x: 100,
+    y: 100
+  });
+
+  if (error) { alert("Erro: " + error.message); return; }
+
+  localStorage.setItem("player_id", player_id);
+  localStorage.setItem("sprite", sprite);
+  localStorage.setItem("user_id", user_id);
+
+  window.location.href = "game.html";
+}
 </script>
 </body>
 </html>
