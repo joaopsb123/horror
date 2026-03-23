@@ -2,112 +2,55 @@
 <html>
 <head>
   <title>Horror Game Lobby</title>
-  <style>
-    body { font-family: sans-serif; background: black; color: white; }
-    input, button { margin: 5px; }
-  </style>
 </head>
 <body>
 <h1>Horror Game - Lobby</h1>
 
-<div id="auth">
-  <h2>Login / Criar Conta</h2>
-  <input id="username" placeholder="Username">
-  <input id="password" placeholder="Password" type="password">
-  <button onclick="createAccount()">Criar Conta</button>
-  <button onclick="login()">Login</button>
-  <p id="status"></p>
-</div>
+<input id="username" placeholder="Username">
+<input id="password" placeholder="Password" type="password">
+<button onclick="createAccount()">Criar Conta</button>
+<button onclick="login()">Login</button>
+<p id="status"></p>
 
-<div id="character" style="display:none">
-  <h2>Escolha seu personagem</h2>
-  <select id="sprite">
-    <option value="default">Padrão</option>
-    <option value="ghost">Ghost</option>
-    <option value="zombie">Zombie</option>
-  </select>
-  <button onclick="enterLobby()">Entrar na Lobby</button>
-</div>
-
-<script type="module">
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js";
-
-// Conexão Supabase
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.26.0/dist/supabase.min.js"></script>
+<script>
 const SUPABASE_URL = window.NEXT_PUBLIC_storage2_SUPABASE_URL;
 const SUPABASE_ANON_KEY = window.NEXT_PUBLIC_storage2_SUPABASE_ANON_KEY;
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let user_id = null;
 
-// Criar conta
 async function createAccount() {
   const username = document.getElementById("username").value;
   const password = document.getElementById("password").value;
-  if (!username || !password) { alert("Preencha os campos!"); return; }
-
   user_id = "user_" + Math.floor(Math.random()*10000);
-
-  const bcrypt_hash = btoa(password); // simples hash base64, depois pode trocar por bcrypt no backend
-
+  const password_hash = btoa(password);
   const { error } = await supabase.from("users").insert({
     id: user_id,
     username,
-    password_hash: bcrypt_hash
+    password_hash
   });
-
-  if (error) { 
-    document.getElementById("status").innerText = "Erro: " + error.message; 
+  if (error) {
+    document.getElementById("status").innerText = error.message;
   } else {
-    document.getElementById("status").innerText = "Conta criada! Escolha o personagem.";
-    document.getElementById("auth").style.display = "none";
-    document.getElementById("character").style.display = "block";
+    document.getElementById("status").innerText = "Conta criada!";
   }
 }
 
-// Login
 async function login() {
   const username = document.getElementById("username").value;
   const password = document.getElementById("password").value;
-  if (!username || !password) { alert("Preencha os campos!"); return; }
-
-  const { data, error } = await supabase
-    .from("users")
-    .select("*")
-    .eq("username", username)
-    .single();
-
+  const { data, error } = await supabase.from("users").select("*").eq("username", username).single();
   if (error || !data) { document.getElementById("status").innerText = "Usuário não encontrado"; return; }
-
-  const password_hash = btoa(password); 
+  const password_hash = btoa(password);
   if (password_hash !== data.password_hash) { document.getElementById("status").innerText = "Senha incorreta"; return; }
-
   user_id = data.id;
-  document.getElementById("status").innerText = "Login ok! Escolha personagem";
-  document.getElementById("auth").style.display = "none";
-  document.getElementById("character").style.display = "block";
+  document.getElementById("status").innerText = "Login OK!";
 }
 
-// Entrar na lobby (criação de personagem)
-async function enterLobby() {
-  const sprite = document.getElementById("sprite").value;
-  const player_id = "player_" + Math.floor(Math.random()*10000);
-
-  const { error } = await supabase.from("players").insert({
-    id: player_id,
-    user_id,
-    sprite,
-    x: 100,
-    y: 100
-  });
-
-  if (error) { alert("Erro: " + error.message); return; }
-
-  localStorage.setItem("player_id", player_id);
-  localStorage.setItem("sprite", sprite);
-  localStorage.setItem("user_id", user_id);
-
-  window.location.href = "game.html";
-}
+// Tornar globais
+window.createAccount = createAccount;
+window.login = login;
 </script>
 </body>
 </html>
