@@ -1,58 +1,64 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Top-Down Game Teste</title>
+  <title>Top-Down Game Supabase</title>
 </head>
 <body>
-<h1>Teste Top-Down + MongoDB</h1>
+<h1>Top-Down Game + Supabase</h1>
 <canvas id="game" width="800" height="600" style="border:1px solid black;"></canvas>
 
-<script>
+<script type="module">
+// Import supabase-js (ES module)
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js";
+
+// === CONFIGURAÇÃO SUPABASE ===
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || window.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || window.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// === JOGO ===
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let player = { x: 100, y: 100 };
+let player = { id: "player1", x: 100, y: 100 };
 
-// Carregar posição do servidor
+// Carregar posição do Supabase
 async function load() {
-    try {
-        const res = await fetch("http://localhost:3000/load");
-        const data = await res.json();
-        player = data;
-    } catch {
-        console.log("Não foi possível carregar do servidor");
-    }
+  const { data, error } = await supabase
+    .from("players")
+    .select("*")
+    .eq("id", player.id)
+    .single();
+  if (data) player = data;
+  if (error) console.log("Load error:", error.message);
 }
 
-// Salvar posição no servidor
+// Salvar posição no Supabase
 async function save() {
-    try {
-        await fetch("http://localhost:3000/save", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(player)
-        });
-    } catch {
-        console.log("Não foi possível salvar no servidor");
-    }
+  const { error } = await supabase
+    .from("players")
+    .upsert(player);
+  if (error) console.log("Save error:", error.message);
 }
 
-// Movimentação WASD
+// Teclas WASD
 document.addEventListener("keydown", (e) => {
-    if (e.key === "w") player.y -= 5;
-    if (e.key === "s") player.y += 5;
-    if (e.key === "a") player.x -= 5;
-    if (e.key === "d") player.x += 5;
-    save();
+  if (e.key === "w") player.y -= 5;
+  if (e.key === "s") player.y += 5;
+  if (e.key === "a") player.x -= 5;
+  if (e.key === "d") player.x += 5;
+  save();
 });
 
+// Desenhar jogador
 function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "blue";
-    ctx.fillRect(player.x, player.y, 20, 20);
-    requestAnimationFrame(draw);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "blue";
+  ctx.fillRect(player.x, player.y, 20, 20);
+  requestAnimationFrame(draw);
 }
 
+// Inicializar
 load();
 draw();
 </script>
