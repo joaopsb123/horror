@@ -1,48 +1,45 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Top-Down Game Supabase</title>
+  <title>Top-Down Game Supabase Multiplayer</title>
 </head>
 <body>
-<h1>Top-Down Game + Supabase</h1>
+<h1>Top-Down Game Multiplayer + Supabase</h1>
 <canvas id="game" width="800" height="600" style="border:1px solid black;"></canvas>
 
 <script type="module">
-// Import supabase-js (ES module)
+// Import Supabase
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js";
 
 // === CONFIGURAÇÃO SUPABASE ===
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || window.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || window.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const SUPABASE_URL = window.NEXT_PUBLIC_storage2_SUPABASE_URL;
+const SUPABASE_ANON_KEY = window.NEXT_PUBLIC_storage2_SUPABASE_ANON_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // === JOGO ===
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-let player = { id: "player1", x: 100, y: 100 };
+const PLAYER_ID = "player_" + Math.floor(Math.random()*10000);
+let players = {};
+players[PLAYER_ID] = { id: PLAYER_ID, x: 100, y: 100 };
 
-// Carregar posição do Supabase
-async function load() {
-  const { data, error } = await supabase
-    .from("players")
-    .select("*")
-    .eq("id", player.id)
-    .single();
-  if (data) player = data;
-  if (error) console.log("Load error:", error.message);
-}
-
-// Salvar posição no Supabase
+// Salvar jogador atual
 async function save() {
-  const { error } = await supabase
-    .from("players")
-    .upsert(player);
-  if (error) console.log("Save error:", error.message);
+  await supabase.from("players").upsert(players[PLAYER_ID]);
 }
 
-// Teclas WASD
+// Carregar todos jogadores
+async function loadAll() {
+  const { data, error } = await supabase.from("players").select("*");
+  if (data) {
+    data.forEach(p => players[p.id] = p);
+  }
+}
+
+// Movimento WASD
 document.addEventListener("keydown", (e) => {
+  const player = players[PLAYER_ID];
   if (e.key === "w") player.y -= 5;
   if (e.key === "s") player.y += 5;
   if (e.key === "a") player.x -= 5;
@@ -50,16 +47,19 @@ document.addEventListener("keydown", (e) => {
   save();
 });
 
-// Desenhar jogador
+// Desenhar jogadores
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "blue";
-  ctx.fillRect(player.x, player.y, 20, 20);
+  Object.values(players).forEach(p => {
+    ctx.fillStyle = p.id === PLAYER_ID ? "blue" : "red";
+    ctx.fillRect(p.x, p.y, 20, 20);
+  });
   requestAnimationFrame(draw);
 }
 
-// Inicializar
-load();
+// Atualizar todos jogadores a cada 200ms
+setInterval(loadAll, 200);
+
 draw();
 </script>
 </body>
