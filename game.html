@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Horror Game</title>
+  <style>
+    canvas { background: black; display: block; margin: 0 auto; }
+  </style>
+</head>
+<body>
+<h1>Horror Game - Sala</h1>
+<canvas id="game" width="800" height="600"></canvas>
+
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js";
+
+const SUPABASE_URL = window.NEXT_PUBLIC_storage2_SUPABASE_URL;
+const SUPABASE_ANON_KEY = window.NEXT_PUBLIC_storage2_SUPABASE_ANON_KEY;
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const PLAYER_ID = localStorage.getItem("player_id");
+const USER_SPRITE = localStorage.getItem("sprite");
+
+let players = {};
+players[PLAYER_ID] = { id: PLAYER_ID, x: 100, y: 100, sprite: USER_SPRITE };
+
+// Salvar posição
+async function save() {
+  await supabase.from("players").upsert(players[PLAYER_ID]);
+}
+
+// Carregar todos jogadores
+async function loadAll() {
+  const { data, error } = await supabase.from("players").select("*");
+  if (data) {
+    data.forEach(p => players[p.id] = p);
+  }
+}
+
+// Movimento WASD
+document.addEventListener("keydown", (e) => {
+  const p = players[PLAYER_ID];
+  if (e.key === "w") p.y -= 5;
+  if (e.key === "s") p.y += 5;
+  if (e.key === "a") p.x -= 5;
+  if (e.key === "d") p.x += 5;
+  save();
+});
+
+// Desenhar jogadores
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  Object.values(players).forEach(p => {
+    ctx.fillStyle = p.id === PLAYER_ID ? "blue" : "red";
+    ctx.fillRect(p.x, p.y, 20, 20);
+    ctx.fillText(p.sprite, p.x, p.y-5);
+  });
+  requestAnimationFrame(draw);
+}
+
+// Atualizar players a cada 200ms
+setInterval(loadAll, 200);
+
+draw();
+</script>
+</body>
+</html>
