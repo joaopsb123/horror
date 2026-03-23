@@ -1,1 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Top-Down Game Teste</title>
+</head>
+<body>
+<h1>Teste Top-Down + MongoDB</h1>
+<canvas id="game" width="800" height="600" style="border:1px solid black;"></canvas>
 
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let player = { x: 100, y: 100 };
+
+// Carregar posição do servidor
+async function load() {
+    try {
+        const res = await fetch("http://localhost:3000/load");
+        const data = await res.json();
+        player = data;
+    } catch {
+        console.log("Não foi possível carregar do servidor");
+    }
+}
+
+// Salvar posição no servidor
+async function save() {
+    try {
+        await fetch("http://localhost:3000/save", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(player)
+        });
+    } catch {
+        console.log("Não foi possível salvar no servidor");
+    }
+}
+
+// Movimentação WASD
+document.addEventListener("keydown", (e) => {
+    if (e.key === "w") player.y -= 5;
+    if (e.key === "s") player.y += 5;
+    if (e.key === "a") player.x -= 5;
+    if (e.key === "d") player.x += 5;
+    save();
+});
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "blue";
+    ctx.fillRect(player.x, player.y, 20, 20);
+    requestAnimationFrame(draw);
+}
+
+load();
+draw();
+</script>
+</body>
+</html>
